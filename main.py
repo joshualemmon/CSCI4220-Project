@@ -63,7 +63,6 @@ def main():
 	print(r)
 	m.visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], 
 	                            class_names, r['scores'])
-main()
 
-if __name__ == "main":
+if __name__ == "__main__":
 	main()
