@@ -8,7 +8,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 ROOT_DIR = os.path.abspath(".")
-
 sys.path.append("Mask_RCNN")
 from mrcnn import utils
 import mrcnn.model as modellib
