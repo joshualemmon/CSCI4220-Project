@@ -6,7 +6,9 @@ import numpy as np
 import skimage.io
 import matplotlib
 import matplotlib.pyplot as plt
-import mrcnn as m
+from mrcnn import utils
+import mrcnn.model as modellib
+from mrcnn import visualize
 
 ROOT_DIR = os.path.abspath(".")
 sys.path.append(os.path.join(ROOT_DIR, "Mask_RCNN/samples/coco/"))  # To find local version
@@ -25,13 +27,13 @@ def load_model():
 	COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
 	# Download COCO trained weights from Releases if needed
 	if not os.path.exists(COCO_MODEL_PATH):
-		m.utils.download_trained_weights(COCO_MODEL_PATH)
+		utils.download_trained_weights(COCO_MODEL_PATH)
 	# Create model object in inference mode.
-	model = m.model.MaskRCNN(mode="inference", model_dir=MODEL_DIR, config=config)
-	return model
+	model = modellib.MaskRCNN(mode="inference", model_dir=MODEL_DIR, config=config)
+	return model, COCO_MODEL_PATH
 
 def main():
-	model = load_model()
+	model, COCO_MODEL_PATH = load_model()
 	print("created model")
 	# Load weights trained on MS-COCO
 	model.load_weights(COCO_MODEL_PATH, by_name=True)
@@ -51,7 +53,9 @@ def main():
                'keyboard', 'cell phone', 'microwave', 'oven', 'toaster',
                'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors',
                'teddy bear', 'hair drier', 'toothbrush']
-	file_names = next(os.walk("./images"))[2]
+
+	IMAGE_DIR = "./images"
+	file_names = next(os.walk(IMAGE_DIR))[2]
 	image = skimage.io.imread(os.path.join(IMAGE_DIR, random.choice(file_names)))
 
 	# Run detection
@@ -61,7 +65,7 @@ def main():
 	r = results[0]
 	print("dasdasd")
 	print(r)
-	m.visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], 
+	visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], 
 	                            class_names, r['scores'])
 
 if __name__ == "__main__":
