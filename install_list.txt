@@ -1,0 +1,9 @@
+keras
+tensorflow
+coco
+mrcnn
+cython
+pycocotools
+scikit-image
+imgaug
+ipython

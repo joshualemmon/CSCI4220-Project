@@ -6,39 +6,36 @@ import numpy as np
 import skimage.io
 import matplotlib
 import matplotlib.pyplot as plt
+import mrcnn as m
 
 ROOT_DIR = os.path.abspath(".")
-sys.path.append("Mask_RCNN")
-from mrcnn import utils
-import mrcnn.model as modellib
-from mrcnn import visualize
-# Import COCO config
 sys.path.append(os.path.join(ROOT_DIR, "Mask_RCNN/samples/coco/"))  # To find local version
 import coco
-
-MODEL_DIR = os.path.join(ROOT_DIR, "logs")
-
-# Local path to trained weights file
-COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
-# Download COCO trained weights from Releases if needed
-if not os.path.exists(COCO_MODEL_PATH):
-    utils.download_trained_weights(COCO_MODEL_PATH)
 
 class InferenceConfig(coco.CocoConfig):
     # Set batch size to 1 since we'll be running inference on
     # one image at a time. Batch size = GPU_COUNT * IMAGES_PER_GPU
-    GPU_COUNT = 1
-    IMAGES_PER_GPU = 1
+	GPU_COUNT = 1
+	IMAGES_PER_GPU = 1 
 
-config = InferenceConfig()
+def load_model():
+	MODEL_DIR = os.path.join(ROOT_DIR, "logs")
+	config = InferenceConfig()
+	# Local path to trained weights file
+	COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
+	# Download COCO trained weights from Releases if needed
+	if not os.path.exists(COCO_MODEL_PATH):
+		m.utils.download_trained_weights(COCO_MODEL_PATH)
+	# Create model object in inference mode.
+	model = m.model.MaskRCNN(mode="inference", model_dir=MODEL_DIR, config=config)
+	return model
 
 def main():
-	# Create model object in inference mode.
-	model = modellib.MaskRCNN(mode="inference", model_dir=MODEL_DIR, config=config)
-
+	model = load_model()
+	print("created model")
 	# Load weights trained on MS-COCO
 	model.load_weights(COCO_MODEL_PATH, by_name=True)
-
+	print("loaded model")
 	class_names = ['BG', 'person', 'bicycle', 'car', 'motorcycle', 'airplane',
                'bus', 'train', 'truck', 'boat', 'traffic light',
                'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird',
@@ -62,8 +59,11 @@ def main():
 
 	# Visualize results
 	r = results[0]
-	visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], 
+	print("dasdasd")
+	print(r)
+	m.visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], 
 	                            class_names, r['scores'])
+main()
 
 if __name__ == "main":
 	main()
