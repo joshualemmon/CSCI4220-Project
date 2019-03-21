@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 from mrcnn import utils
 import mrcnn.model as modellib
 from mrcnn import visualize
+import argparse
+import sqlite3
 
 ROOT_DIR = os.path.abspath(".")
 sys.path.append(os.path.join(ROOT_DIR, "Mask_RCNN/samples/coco/"))  # To find local version
@@ -32,7 +34,7 @@ def load_model():
 	model = modellib.MaskRCNN(mode="inference", model_dir=MODEL_DIR, config=config)
 	return model, COCO_MODEL_PATH
 
-def main():
+def main(args):
 	model, COCO_MODEL_PATH = load_model()
 	print("created model")
 	# Load weights trained on MS-COCO
@@ -54,19 +56,49 @@ def main():
                'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors',
                'teddy bear', 'hair drier', 'toothbrush']
 
-	IMAGE_DIR = "./images"
-	file_names = next(os.walk(IMAGE_DIR))[2]
-	image = skimage.io.imread(os.path.join(IMAGE_DIR, random.choice(file_names)))
-	for c in class_names:
-		print(c)
-	# Run detection
-	results = model.detect([image], verbose=1)
 
-	# Visualize results
-	r = results[0]
-	print(r)
-	visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], 
-	                            class_names, r['scores'])
+	file_names = []
+	if(args.proc_imgs):
+		img_names = []
+		images = []
+		for i, f in enumerate(os.listdir(args.img_dir), 1):
+			if i <= args.num_files:
+				img_names.append(f)
+				file_names.append(f)
+			else:
+				break
+		print(len(file_names))
+		results = []
+		for i in img_names:
+			image = skimage.io.imread(args.img_dir + '/' + i)	
+			result = model.detect([image], verbose=1)
+			r = result[0]
+			results.append(r)
+			if args.output:
+				visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], class_names, r['scores'])
+	class_ids = []
+	for r in results:
+		class_ids.append(r['class_ids'])
+	img_labels = zip(img_names, class_ids)
+	for i, c in img_labels:
+		print(i, c)
+	# if(args.proc_vids):
+	# 	vid_names = []
+	# 	videos = []
+	# 	for f in os.listdir(args.vid_dir):
+	# 		vid_names.append(f)
+	# 		file_names.append(f)
+	# 	for f in file_names:
+	# 		videos.append(skimage.io.vread(args.vid_dir + '/' + f))
+	# 	print(len(videos))
+
 
 if __name__ == "__main__":
-	main()
+	argparser = argparse.ArgumentParser()
+	argparser.add_argument('-id', '--img_dir', type=str, default='./images')
+	argparser.add_argument('-pi', '--proc_imgs', type=bool, default=True)
+	argparser.add_argument('-vd', '--vid_dir', type=str, default='./videos')
+	argparser.add_argument('-pv', '--proc_vids', type=bool, default=False)
+	argparser.add_argument('-o', '--output', type=bool, default=False)
+	argparser.add_argument('-n', '--num_files', type=int, default=-1)
+	main(argparser.parse_args())
