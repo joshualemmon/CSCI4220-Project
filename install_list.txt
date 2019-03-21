@@ -7,3 +7,4 @@ pycocotools
 scikit-image
 imgaug
 ipython
+sqlite3
