@@ -56,32 +56,14 @@ def main(args):
                'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors',
                'teddy bear', 'hair drier', 'toothbrush']
 
-
+    db = sqlite3.connect(args.db_path)
 	file_names = []
 	if(args.proc_imgs):
-		img_names = []
-		images = []
-		for i, f in enumerate(os.listdir(args.img_dir), 1):
-			if i <= args.num_files:
-				img_names.append(f)
-				file_names.append(f)
-			else:
-				break
-		print(len(file_names))
-		results = []
-		for i in img_names:
-			image = skimage.io.imread(args.img_dir + '/' + i)	
-			result = model.detect([image], verbose=1)
-			r = result[0]
-			results.append(r)
-			if args.output:
-				visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], class_names, r['scores'])
-	class_ids = []
-	for r in results:
-		class_ids.append(r['class_ids'])
-	img_labels = zip(img_names, class_ids)
-	for i, c in img_labels:
-		print(i, c)
+		img_labels = analyze_images(img_dir, num_files)
+		for i, c in img_labels:
+			rel = calc_img_relevence(c)
+			add_labels_db(db, i, c, rel)
+
 	# if(args.proc_vids):
 	# 	vid_names = []
 	# 	videos = []
@@ -93,6 +75,46 @@ def main(args):
 	# 	print(len(videos))
 
 
+def analyze_images(img_dir, num_files):
+	img_names = []
+	images = []
+	for i, f in enumerate(os.listdir(img_dir), 1):
+		if i <= num_files:
+			img_names.append(f)
+			file_names.append(f)
+		else:
+			break
+	results = []
+	for i in img_names:
+		image = skimage.io.imread(img_dir + '/' + i)	
+		result = model.detect([image], verbose=1)
+		r = result[0]
+		results.append(r)
+		if args.output:
+			visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], class_names, r['scores'])
+	class_ids = []
+	for r in results:
+		class_ids.append(r['class_ids'])
+	img_labels = zip(img_names, class_ids)
+	for i, c in img_labels:
+		print(i, c)
+	return img_labels
+
+def calc_img_relevence(class_ids):
+	pass
+
+def calc_vid_relevence():
+	pass
+
+def add_labels_db(db, fname, rel):
+	c = db.cursor()
+	c.execute("select file_id from file where filename=?", fname)
+	file_id = c.fetchone()
+	for key in rel.keys():
+		c.execute("insert into file_label values( ?, ?, ?)",file_id, key, rel[key])
+	db.commit()
+
+
 if __name__ == "__main__":
 	argparser = argparse.ArgumentParser()
 	argparser.add_argument('-id', '--img_dir', type=str, default='./images')
@@ -101,4 +123,5 @@ if __name__ == "__main__":
 	argparser.add_argument('-pv', '--proc_vids', type=bool, default=False)
 	argparser.add_argument('-o', '--output', type=bool, default=False)
 	argparser.add_argument('-n', '--num_files', type=int, default=-1)
+	argparser.add_argument('-db', '--db_path', type=str, default='labeldb.db')
 	main(argparser.parse_args())
