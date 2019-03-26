@@ -59,7 +59,7 @@ def main(args):
     db = sqlite3.connect(args.db_path)
 	file_names = []
 	if(args.proc_imgs):
-		img_labels = analyze_images(img_dir, num_files)
+		img_labels = analyze_images(img_dir, num_files, class_names)
 		for i, c in img_labels:
 			rel = calc_img_relevence(c)
 			add_labels_db(db, i, c, rel)
@@ -74,8 +74,8 @@ def main(args):
 	# 		videos.append(skimage.io.vread(args.vid_dir + '/' + f))
 	# 	print(len(videos))
 
-
-def analyze_images(img_dir, num_files):
+# Analyzes images in image directory and detcts objects in each
+def analyze_images(img_dir, num_files, class_names):
 	img_names = []
 	images = []
 	for i, f in enumerate(os.listdir(img_dir), 1):
@@ -100,12 +100,17 @@ def analyze_images(img_dir, num_files):
 		print(i, c)
 	return img_labels
 
+# Returns relevence for each class id as a dict
 def calc_img_relevence(class_ids):
+	rel = dict()
+	return rel
+
+# Returns relevence for each class id as a dict
+def calc_vid_relevence(class_ids):
+	rel = dict()
 	pass
 
-def calc_vid_relevence():
-	pass
-
+# Writes class id and relevence to db for given file
 def add_labels_db(db, fname, rel):
 	c = db.cursor()
 	c.execute("select file_id from file where filename=?", fname)
