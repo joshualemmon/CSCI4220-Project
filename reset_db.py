@@ -6,13 +6,13 @@ import argparse
 def add_images(db, img_dir):
 	c = db.cursor()
 	for i,f in enumerate(os.listdir(img_dir)):
-		c.execute("insert or ignore into files(file_id, filename) values ("+str(i)+", '" + f + "');")
+		c.execute("insert ointo files(file_id, filename) values ("+str(i)+", '" + f + "');")
 	db.commit()
 		
 def add_videos(db, vid_dir):
 	c = db.cursor()
 	for i,f in enumerate(os.listdir(vid_dir)):
-		c.execute("insert or ignore into files(file_id, filename) values ("+str(i)+", '" + f + "');")
+		c.execute("insert into files(file_id, filename) values ("+str(i)+", '" + f + "');")
 	db.commit()
 
 def add_labels(db):
@@ -22,7 +22,7 @@ def add_labels(db):
 			labels.append(l.strip('\n'))
 	c = db.cursor()
 	for i, l in enumerate(labels):
-		c.execute("insert or ignore into labels(label_id, label) values ("+str(i) + ", '" + l +"');")
+		c.execute("insert into labels(label_id, label) values ("+str(i) + ", '" + l +"');")
 	db.commit()
 
 def main(args):
