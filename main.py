@@ -123,7 +123,7 @@ def add_labels_db(db, fname, rel):
 	c.execute("select file_id from files where filename = '" + fname + "'")
 	file_id = c.fetchone()[0]
 	c.execute("select count(file_id) from file_label where file_id = " + str(file_id))
-	if(c.fetchone()[0] == 0)
+	if(c.fetchone()[0] == 0):
 		for key in rel.keys():
 			c.execute("insert or ignore into file_label(file_id, label_id, relevance) values(" + str(file_id) + ", " + str(key) + ", " + str(rel[key]) + ")")
 	db.commit()
