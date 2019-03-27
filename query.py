@@ -44,9 +44,18 @@ def label_search(db, n, o):
 			for f, r in files:
 				print("File " + f + " has relevance of " + str(r))
 				if o == 1:
-					img = cv2.imread('./images/' + f, 1)
-					cv2.imshow(l + ' relevance = ' + str(r), img)
-					cv2.waitKey(0)
+					if f.split('.')[-1] == 'jpg':
+						img = cv2.imread('./images/' + f, 1)
+						cv2.imshow(l + ' relevance = ' + str(r), img)
+						cv2.waitKey(0)
+					else:
+						vid = cv2.VideoCapture('./videos/'+ f)
+						while(vid.isOpened()):
+							ret, frame = vid.read()
+							cv2.imshow('frame', frame)
+							if cv2.waitKey(1) & 0xFF == ord('q'):
+								break
+						vid.release()
 				cv2.destroyAllWindows()
 
 def get_files_with_label(db, l, n):
@@ -69,9 +78,18 @@ def fname_search(db, n, o):
 				print("Label " + l + " has relevance of " + str(r))
 
 			if o == 1:
-				img = cv2.imread('./images/' + f, 1)
-				cv2.imshow('Image', img)
-				cv2.waitKey(0)
+				if f.split('.')[-1] == 'jpg':
+					img = cv2.imread('./images/' + f, 1)
+					cv2.imshow('Image', img)
+					cv2.waitKey(0)
+				else:
+					vid = cv2.VideoCapture('./videos/'+ f)
+					while(vid.isOpened()):
+						ret, frame = vid.read()
+						cv2.imshow('frame', frame)
+						if cv2.waitKey(1) & 0xFF == ord('q'):
+							break
+					vid.release()
 				cv2.destroyAllWindows()
 	
 def get_labels_for_file(db, f, n):
