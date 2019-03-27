@@ -11,6 +11,7 @@ import mrcnn.model as modellib
 from mrcnn import visualize
 import argparse
 import sqlite3
+from collections import Counter
 
 ROOT_DIR = os.path.abspath(".")
 sys.path.append(os.path.join(ROOT_DIR, "Mask_RCNN/samples/coco/"))  # To find local version
@@ -56,13 +57,12 @@ def main(args):
                'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors',
                'teddy bear', 'hair drier', 'toothbrush']
 
-    db = sqlite3.connect(args.db_path)
-	file_names = []
+	db = sqlite3.connect(args.db_path)
 	if(args.proc_imgs):
-		img_labels = analyze_images(img_dir, num_files, class_names)
+		img_labels = analyze_images(model,args.img_dir, args.num_files, class_names, args.output)
 		for i, c in img_labels:
 			rel = calc_img_relevence(c)
-			add_labels_db(db, i, c, rel)
+			add_labels_db(db, i, rel)
 
 	# if(args.proc_vids):
 	# 	vid_names = []
@@ -75,13 +75,12 @@ def main(args):
 	# 	print(len(videos))
 
 # Analyzes images in image directory and detcts objects in each
-def analyze_images(img_dir, num_files, class_names):
+def analyze_images(model, img_dir, num_files, class_names, output):
 	img_names = []
 	images = []
 	for i, f in enumerate(os.listdir(img_dir), 1):
 		if i <= num_files:
 			img_names.append(f)
-			file_names.append(f)
 		else:
 			break
 	results = []
@@ -90,19 +89,21 @@ def analyze_images(img_dir, num_files, class_names):
 		result = model.detect([image], verbose=1)
 		r = result[0]
 		results.append(r)
-		if args.output:
+		if output:
 			visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], class_names, r['scores'])
 	class_ids = []
 	for r in results:
 		class_ids.append(r['class_ids'])
 	img_labels = zip(img_names, class_ids)
-	for i, c in img_labels:
-		print(i, c)
 	return img_labels
 
 # Returns relevence for each class id as a dict
 def calc_img_relevence(class_ids):
 	rel = dict()
+	id_set = set(class_ids)
+	count = Counter(class_ids)
+	for i in id_set:
+		rel[i] = count[i]/len(class_ids)
 	return rel
 
 # Returns relevence for each class id as a dict
@@ -113,10 +114,10 @@ def calc_vid_relevence(class_ids):
 # Writes class id and relevence to db for given file
 def add_labels_db(db, fname, rel):
 	c = db.cursor()
-	c.execute("select file_id from file where filename=?", fname)
-	file_id = c.fetchone()
+	c.execute("select file_id from files where filename = '" + fname + "';")
+	file_id = c.fetchone()[0]
 	for key in rel.keys():
-		c.execute("insert into file_label values( ?, ?, ?)",file_id, key, rel[key])
+		c.execute("insert into file_label(file_id, label_id, relevance) values(" + str(file_id) + ", " + str(key) + ", " + str(rel[key]) + ")")
 	db.commit()
 
 
