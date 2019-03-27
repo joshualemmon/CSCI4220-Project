@@ -59,27 +59,21 @@ def main(args):
 
 	db = sqlite3.connect(args.db_path)
 	if(args.proc_imgs):
-		img_labels = analyze_images(model,args.img_dir, args.num_files, class_names, args.output)
+		img_labels = analyze_images(model,args.img_dir, args.num_imgs, class_names, args.output)
 		for i, c in img_labels:
 			rel = calc_img_relevence(c)
 			add_labels_db(db, i, rel)
 
-	# if(args.proc_vids):
-	# 	vid_names = []
-	# 	videos = []
-	# 	for f in os.listdir(args.vid_dir):
-	# 		vid_names.append(f)
-	# 		file_names.append(f)
-	# 	for f in file_names:
-	# 		videos.append(skimage.io.vread(args.vid_dir + '/' + f))
-	# 	print(len(videos))
+	if(args.proc_vids):
+		pass
+		
 
 # Analyzes images in image directory and detcts objects in each
-def analyze_images(model, img_dir, num_files, class_names, output):
+def analyze_images(model, img_dir, num_imgs, class_names, output):
 	img_names = []
 	images = []
 	for i, f in enumerate(os.listdir(img_dir), 1):
-		if i <= num_files:
+		if i <= num_imgs or num_imgs == -1:
 			img_names.append(f)
 		else:
 			break
@@ -96,6 +90,18 @@ def analyze_images(model, img_dir, num_files, class_names, output):
 		class_ids.append(r['class_ids'])
 	img_labels = zip(img_names, class_ids)
 	return img_labels
+
+def analyze_videos(model, vid_dir, num_vids, class_names, output):
+	vid_names = []
+	videos = []
+	for i, f in enumerate(os.listdir(args.vid_dir)):
+		if i <= num_vids or num_vids == -1:
+			vid_names.append(f)
+		else:
+			break
+	for f in file_names:
+		videos.append(skimage.io.vread(args.vid_dir + '/' + f))
+	print(len(videos))
 
 # Returns relevence for each class id as a dict
 def calc_img_relevence(class_ids):
@@ -128,6 +134,7 @@ if __name__ == "__main__":
 	argparser.add_argument('-vd', '--vid_dir', type=str, default='./videos')
 	argparser.add_argument('-pv', '--proc_vids', type=bool, default=False)
 	argparser.add_argument('-o', '--output', type=bool, default=False)
-	argparser.add_argument('-n', '--num_files', type=int, default=-1)
+	argparser.add_argument('-ni', '--num_imgs', type=int, default=-1)
+	argparser.add_argument('-nv', '--num_vids', type=int, default=-1)
 	argparser.add_argument('-db', '--db_path', type=str, default='labeldb.db')
 	main(argparser.parse_args())
