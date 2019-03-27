@@ -6,7 +6,7 @@ import argparse
 def add_images(db, img_dir):
 	c = db.cursor()
 	for i,f in enumerate(os.listdir(img_dir)):
-		c.execute("insert ointo files(file_id, filename) values ("+str(i)+", '" + f + "');")
+		c.execute("insert into files(file_id, filename) values ("+str(i)+", '" + f + "');")
 	db.commit()
 		
 def add_videos(db, vid_dir):
