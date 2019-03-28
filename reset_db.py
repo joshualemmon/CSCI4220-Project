@@ -11,7 +11,9 @@ def add_images(db, img_dir):
 		
 def add_videos(db, vid_dir):
 	c = db.cursor()
-	for i,f in enumerate(os.listdir(vid_dir)):
+	c.execute("select file_id from files order by file_id desc")
+	latest_id = c.fetchone()[0]
+	for i,f in enumerate(os.listdir(vid_dir), latest_id +1):
 		c.execute("insert into files(file_id, filename) values ("+str(i)+", '" + f + "');")
 	db.commit()
 
@@ -42,4 +44,5 @@ if __name__ == '__main__':
 	parser.add_argument('-db', '--db_path', type=str, default='labeldb.db')
 	parser.add_argument('-id', '--img_dir', type=str, default='./images')
 	parser.add_argument('-vd', '--vid_dir', type=str, default='./videos')
+	parser.add_argument('-r', '--reset_file_labels', type=bool, default=False)
 	main(parser.parse_args())

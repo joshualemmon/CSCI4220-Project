@@ -43,7 +43,7 @@ def label_search(db, n, o):
 			files = get_files_with_label(db, l, n)
 			for f, r in files:
 				print("File " + f + " has relevance of " + str(r))
-				if o == 1:
+				if o:
 					if f.split('.')[-1] == 'jpg':
 						img = cv2.imread('./images/' + f, 1)
 						cv2.imshow(l + ' relevance = ' + str(r), img)
@@ -77,7 +77,7 @@ def fname_search(db, n, o):
 			for l, r in labels:
 				print("Label " + l + " has relevance of " + str(r))
 
-			if o == 1:
+			if o:
 				if f.split('.')[-1] == 'jpg':
 					img = cv2.imread('./images/' + f, 1)
 					cv2.imshow('Image', img)
@@ -104,6 +104,6 @@ if __name__ == "__main__":
 	argparser = argparse.ArgumentParser()
 	argparser.add_argument('-db', "--database", type=str, default="labeldb.db")
 	argparser.add_argument('-n', '--num_results', type=int, default=1)
-	argparser.add_argument('-o', '--output', type=int, default=0)
+	argparser.add_argument('-o', '--output', type=bool, default=False)
 
 	main(argparser.parse_args())
