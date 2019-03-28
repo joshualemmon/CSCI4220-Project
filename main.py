@@ -27,11 +27,14 @@ class InferenceConfig(coco.CocoConfig):
 def load_model():
 	MODEL_DIR = os.path.join(ROOT_DIR, "logs")
 	config = InferenceConfig()
+	
 	# Local path to trained weights file
 	COCO_MODEL_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
+	
 	# Download COCO trained weights from Releases if needed
 	if not os.path.exists(COCO_MODEL_PATH):
 		utils.download_trained_weights(COCO_MODEL_PATH)
+	
 	# Create model object in inference mode.
 	model = modellib.MaskRCNN(mode="inference", model_dir=MODEL_DIR, config=config)
 	return model, COCO_MODEL_PATH
@@ -39,6 +42,7 @@ def load_model():
 def main(args):
 	model, COCO_MODEL_PATH = load_model()
 	print("created model")
+	
 	# Load weights trained on MS-COCO
 	model.load_weights(COCO_MODEL_PATH, by_name=True)
 	print("loaded model")
@@ -58,30 +62,32 @@ def main(args):
                'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors',
                'teddy bear', 'hair drier', 'toothbrush']
 
+	# Fill in image and video relevance data to the database
 	db = sqlite3.connect(args.db_path)
 	if(args.proc_imgs):
 		img_labels = analyze_images(model,args.img_dir, args.num_imgs, class_names, args.output)
 		for i, c in img_labels:
-			rel = calc_img_relevence(c)
+			rel = calc_relevence(c) 
 			add_labels_db(db, i, rel)
 
 	if(args.proc_vids):
 		vid_labels = analyze_videos(model,args.vid_dir, args.num_vids, class_names, args.output)
 		for i, c in vid_labels:
-			rel = calc_img_relevence(c)
+			rel = calc_relevence(c)
 			add_labels_db(db, i, rel) 
 		
 
-# Analyzes images in image directory and detcts objects in each
+# Analyzes images in image directory and detects objects in each
 def analyze_images(model, img_dir, num_imgs, class_names, output):
 	img_names = []
-	images = []
 	for i, f in enumerate(os.listdir(img_dir), 1):
 		if i <= num_imgs or num_imgs == -1:
 			img_names.append(f)
 		else:
 			break
+	
 	results = []
+	# Use the model to process every image
 	for i in img_names:
 		image = skimage.io.imread(img_dir + '/' + i)	
 		result = model.detect([image], verbose=1)
@@ -89,16 +95,18 @@ def analyze_images(model, img_dir, num_imgs, class_names, output):
 		results.append(r)
 		if output:
 			visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], class_names, r['scores'])
+	
 	class_ids = []
 	for r in results:
 		class_ids.append(r['class_ids'])
+	
 	img_labels = zip(img_names, class_ids)
 	return img_labels
 
+# Analyzes videos in video directory and detects objects in each
 # Todo: Next step, save final frames with visualize to create short frame video
 def analyze_videos(model, vid_dir, num_vids, class_names, output):
 	vid_names = []
-	videos = [] # Not sure if needed
 	for i, f in enumerate(os.listdir(vid_dir)):
 		if i <= num_vids or num_vids == -1:
 			vid_names.append(f)
@@ -107,10 +115,8 @@ def analyze_videos(model, vid_dir, num_vids, class_names, output):
 	
 	results = []
 	vid_results = []
-	
-	# Select every nth frame and process it for each video
+	# Select every nth frame and use model to process each video
 	for v in vid_names:
-		print(v)
 		cap = cv2.VideoCapture(vid_dir + '/' + v)
 		total_frames = int(cap.get(7))
 		frame_offset = 100 # Could take in as arg.parse		
@@ -135,24 +141,18 @@ def analyze_videos(model, vid_dir, num_vids, class_names, output):
 			vid_class_ids.extend(vr['class_ids'])
 		class_ids.append(vid_class_ids)
 		
-	print(class_ids)
+	# print(class_ids)
 	vid_labels = zip(vid_names, class_ids)
-	# videos.append(skvideo.io.vread(vid_dir + '/' + f))
 	return vid_labels
 
 # Returns relevence for each class id as a dict
-def calc_img_relevence(class_ids):
+def calc_relevence(class_ids):
 	rel = dict()
 	id_set = set(class_ids)
 	count = Counter(class_ids)
 	for i in id_set:
 		rel[i] = count[i]/len(class_ids)
 	return rel
-
-# Returns relevence for each class id as a dict
-def calc_vid_relevence(class_ids):
-	rel = dict()
-	pass
 
 # Writes class id and relevence to db for given file
 def add_labels_db(db, fname, rel):
