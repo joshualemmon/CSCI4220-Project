@@ -32,7 +32,8 @@ def main(args):
 	c = db.cursor()
 	c.execute("delete from files;")
 	c.execute("delete from labels;")
-	c.execute("delete from file_label;")
+	if args.reset_file_labels:
+		c.execute("delete from file_label;")
 	db.commit()
 	add_labels(db)
 	add_images(db, args.img_dir)
