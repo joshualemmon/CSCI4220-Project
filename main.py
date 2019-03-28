@@ -3,6 +3,7 @@ import sys
 import random
 import math
 import numpy as np
+import cv2
 import skimage.io
 import matplotlib
 import matplotlib.pyplot as plt
@@ -65,7 +66,10 @@ def main(args):
 			add_labels_db(db, i, rel)
 
 	if(args.proc_vids):
-		pass
+		vid_labels = analyze_videos(model,args.vid_dir, args.num_vids, class_names, args.output)
+		for i, c in vid_labels:
+			rel = calc_img_relevence(c)
+			add_labels_db(db, i, rel) 
 		
 
 # Analyzes images in image directory and detcts objects in each
@@ -91,17 +95,50 @@ def analyze_images(model, img_dir, num_imgs, class_names, output):
 	img_labels = zip(img_names, class_ids)
 	return img_labels
 
+# Todo: Next step, save final frames with visualize to create short frame video
 def analyze_videos(model, vid_dir, num_vids, class_names, output):
 	vid_names = []
-	videos = []
-	for i, f in enumerate(os.listdir(args.vid_dir)):
+	videos = [] # Not sure if needed
+	for i, f in enumerate(os.listdir(vid_dir)):
 		if i <= num_vids or num_vids == -1:
 			vid_names.append(f)
 		else:
 			break
-	for f in file_names:
-		videos.append(skimage.io.vread(args.vid_dir + '/' + f))
-	print(len(videos))
+	
+	results = []
+	vid_results = []
+	
+	# Select every nth frame and process it for each video
+	for v in vid_names:
+		print(v)
+		cap = cv2.VideoCapture(vid_dir + '/' + v)
+		total_frames = int(cap.get(7))
+		frame_offset = 100 # Could take in as arg.parse		
+
+		for i in range(0, total_frames, frame_offset):
+			cap.set(1, i)
+			ret, frame = cap.read()
+			result = model.detect([frame], verbose=1)
+			r = result[0]
+			vid_results.append(r)
+		
+		results.append(vid_results)
+		vid_results = []
+
+	class_ids = []
+	vid_class_ids = []
+
+	# Setup class_ids per video
+	for r in results:
+		# Aggregate all class_ids from a video
+		for vr in r:
+			vid_class_ids.extend(vr['class_ids'])
+		class_ids.append(vid_class_ids)
+		
+	print(class_ids)
+	vid_labels = zip(vid_names, class_ids)
+	# videos.append(skvideo.io.vread(vid_dir + '/' + f))
+	return vid_labels
 
 # Returns relevence for each class id as a dict
 def calc_img_relevence(class_ids):
@@ -132,9 +169,9 @@ def add_labels_db(db, fname, rel):
 if __name__ == "__main__":
 	argparser = argparse.ArgumentParser()
 	argparser.add_argument('-id', '--img_dir', type=str, default='./images')
-	argparser.add_argument('-pi', '--proc_imgs', type=bool, default=True)
+	argparser.add_argument('-pi', '--proc_imgs', type=bool, default=False)
 	argparser.add_argument('-vd', '--vid_dir', type=str, default='./videos')
-	argparser.add_argument('-pv', '--proc_vids', type=bool, default=False)
+	argparser.add_argument('-pv', '--proc_vids', type=bool, default=True)
 	argparser.add_argument('-o', '--output', type=bool, default=False)
 	argparser.add_argument('-ni', '--num_imgs', type=int, default=-1)
 	argparser.add_argument('-nv', '--num_vids', type=int, default=-1)
