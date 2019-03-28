@@ -86,25 +86,23 @@ def analyze_images(model, img_dir, num_imgs, class_names, output):
 		else:
 			break
 	
-	results = []
-	# Use the model to process every image
+	# Obtain class_ids from images + visualize
+	class_ids = []
 	for i in img_names:
 		image = skimage.io.imread(img_dir + '/' + i)	
 		result = model.detect([image], verbose=1)
-		r = result[0]
-		results.append(r)
+		r_class_ids = result[0]['class_ids']
+		class_ids.append(r_class_ids)
+		
 		if output:
 			visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], class_names, r['scores'])
-	
-	class_ids = []
-	for r in results:
-		class_ids.append(r['class_ids'])
 	
 	img_labels = zip(img_names, class_ids)
 	return img_labels
 
 # Analyzes videos in video directory and detects objects in each
 # Todo: Next step, save final frames with visualize to create short frame video
+# Todo: Optimize step, skip similar frames
 def analyze_videos(model, vid_dir, num_vids, class_names, output):
 	vid_names = []
 	for i, f in enumerate(os.listdir(vid_dir)):
@@ -112,10 +110,10 @@ def analyze_videos(model, vid_dir, num_vids, class_names, output):
 			vid_names.append(f)
 		else:
 			break
-	
-	results = []
-	vid_results = []
-	# Select every nth frame and use model to process each video
+
+	# Select every nth frame and obtain class_ids for each video
+	class_ids = []
+	vid_class_ids = []
 	for v in vid_names:
 		cap = cv2.VideoCapture(vid_dir + '/' + v)
 		total_frames = int(cap.get(7))
@@ -125,23 +123,14 @@ def analyze_videos(model, vid_dir, num_vids, class_names, output):
 			cap.set(1, i)
 			ret, frame = cap.read()
 			result = model.detect([frame], verbose=1)
-			r = result[0]
-			vid_results.append(r)
+
+			r_class_ids = result[0]['class_ids']
+			vid_class_ids.extend(r_class_ids)
 		
-		results.append(vid_results)
-		vid_results = []
-
-	class_ids = []
-	vid_class_ids = []
-
-	# Setup class_ids per video
-	for r in results:
-		# Aggregate all class_ids from a video
-		for vr in r:
-			vid_class_ids.extend(vr['class_ids'])
 		class_ids.append(vid_class_ids)
+		vid_class_ids = []	
 		
-	# print(class_ids)
+	print(class_ids)
 	vid_labels = zip(vid_names, class_ids)
 	return vid_labels
 
@@ -169,9 +158,9 @@ def add_labels_db(db, fname, rel):
 if __name__ == "__main__":
 	argparser = argparse.ArgumentParser()
 	argparser.add_argument('-id', '--img_dir', type=str, default='./images')
-	argparser.add_argument('-pi', '--proc_imgs', type=bool, default=False)
+	argparser.add_argument('-pi', '--proc_imgs', type=bool, default=True)
 	argparser.add_argument('-vd', '--vid_dir', type=str, default='./videos')
-	argparser.add_argument('-pv', '--proc_vids', type=bool, default=True)
+	argparser.add_argument('-pv', '--proc_vids', type=bool, default=False)
 	argparser.add_argument('-o', '--output', type=bool, default=False)
 	argparser.add_argument('-ni', '--num_imgs', type=int, default=-1)
 	argparser.add_argument('-nv', '--num_vids', type=int, default=-1)
