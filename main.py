@@ -93,7 +93,7 @@ def analyze_images(model, img_dir, num_imgs, class_names, output, save):
 	class_ids = []
 	for i in img_names:
 		image = skimage.io.imread(img_dir + '/' + i)	
-		result = model.detect([image], verbose=1)
+		result = model.detect([image])
 		r_class_ids = result[0]['class_ids']
 		class_ids.append(r_class_ids)
 		if save or output:
@@ -129,7 +129,7 @@ def analyze_videos(model, vid_dir, num_vids, class_names, output):
 		for i in range(0, total_frames, frame_offset):
 			cap.set(1, i)
 			ret, frame = cap.read()
-			result = model.detect([frame], verbose=1)
+			result = model.detect([frame])
 
 			r_class_ids = result[0]['class_ids']
 			vid_class_ids.extend(r_class_ids)
