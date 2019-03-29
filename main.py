@@ -7,12 +7,15 @@ import cv2
 import skimage.io
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib import patches,  lines
+from matplotlib.patches import Polygon
 from mrcnn import utils
 import mrcnn.model as modellib
 from mrcnn import visualize
 import argparse
 import sqlite3
 from collections import Counter
+import colorsys	
 
 ROOT_DIR = os.path.abspath(".")
 sys.path.append(os.path.join(ROOT_DIR, "Mask_RCNN/samples/coco/"))  # To find local version
@@ -65,7 +68,7 @@ def main(args):
 	# Fill in image and video relevance data to the database
 	db = sqlite3.connect(args.db_path)
 	if(args.proc_imgs):
-		img_labels = analyze_images(model,args.img_dir, args.num_imgs, class_names, args.output)
+		img_labels = analyze_images(model,args.img_dir, args.num_imgs, class_names, args.output, args.save)
 		for i, c in img_labels:
 			rel = calc_relevence(c) 
 			add_labels_db(db, i, rel)
@@ -78,7 +81,7 @@ def main(args):
 		
 
 # Analyzes images in image directory and detects objects in each
-def analyze_images(model, img_dir, num_imgs, class_names, output):
+def analyze_images(model, img_dir, num_imgs, class_names, output, save):
 	img_names = []
 	for i, f in enumerate(os.listdir(img_dir), 1):
 		if i <= num_imgs or num_imgs == -1:
@@ -93,9 +96,13 @@ def analyze_images(model, img_dir, num_imgs, class_names, output):
 		result = model.detect([image], verbose=1)
 		r_class_ids = result[0]['class_ids']
 		class_ids.append(r_class_ids)
-		
-		if output:
-			visualize.display_instances(image, r['rois'], r['masks'], r['class_ids'], class_names, r['scores'])
+		if save or output:
+			p_img = get_processed_image(image, r_class_ids, boxes=result[0]['rois'], masks=result[0]['masks'], class_names=class_names, scores=result[0]['scores'])
+			if output:
+				skimage.io.imshow(p_img)
+				plt.show()
+			if save:
+				skimage.io.imsave('./processed/' + i, p_img)
 	
 	img_labels = zip(img_names, class_ids)
 	return img_labels
@@ -154,15 +161,91 @@ def add_labels_db(db, fname, rel):
 			c.execute("insert or ignore into file_label(file_id, label_id, relevance) values(" + str(file_id) + ", " + str(key) + ", " + str(rel[key]) + ")")
 	db.commit()
 
+# Returns an image object with optional bounding boxes, masks and class names
+def get_processed_image(image, class_ids, boxes=[], masks=[], class_names=[],
+                      scores=[], title="",
+                      figsize=(16, 16), ax=None,
+                      show_mask=True, show_bbox=True,
+                      colors=None, captions=None):
+    # Number of instances
+    N = class_ids.shape[0]
+    if not N:
+        print("\n*** No instances to display *** \n")
+    else:
+        assert boxes.shape[0] == masks.shape[-1] == class_ids.shape[0]
+
+    # If no axis is passed, create one and automatically call show()
+    auto_show = False
+    if not ax:
+        _, ax = plt.subplots(1, figsize=figsize)
+        auto_show = True
+
+    # Generate random colors
+    colors = colors or visualize.random_colors(N)
+
+    # Show area outside image boundaries.
+    height, width = image.shape[:2]
+    ax.set_ylim(height + 10, -10)
+    ax.set_xlim(-10, width + 10)
+    ax.axis('off')
+    ax.set_title(title)
+
+    masked_image = image.astype(np.uint32).copy()
+    for i in range(N):
+        color = colors[i]
+
+        # Bounding box
+        if len(boxes) > 0:
+	        if not np.any(boxes[i]):
+	            # Skip this instance. Has no bbox. Likely lost in image cropping.
+	            continue
+	        y1, x1, y2, x2 = boxes[i]
+	        if show_bbox:
+	            p = patches.Rectangle((x1, y1), x2 - x1, y2 - y1, linewidth=2,
+	                                alpha=0.7, linestyle="dashed",
+	                                edgecolor=color, facecolor='none')
+	            ax.add_patch(p)
+
+        # Label
+        if len(class_names) > 0:
+	        if not captions:
+	            class_id = class_ids[i]
+	            score = scores[i] if scores is not None else None
+	            label = class_names[class_id]
+	            caption = "{} {:.3f}".format(label, score) if score else label
+	        else:
+	            caption = captions[i]
+	        ax.text(x1, y1 + 8, caption,
+	                color='w', size=11, backgroundcolor="none")
+
+        # Mask
+        if len(masks) > 0:
+	        mask = masks[:, :, i]
+	        if show_mask:
+	            masked_image = visualize.apply_mask(masked_image, mask, color)
+
+	        # Mask Polygon
+	        # Pad to ensure proper polygons for masks that touch image edges.
+	        padded_mask = np.zeros(
+	            (mask.shape[0] + 2, mask.shape[1] + 2), dtype=np.uint8)
+	        padded_mask[1:-1, 1:-1] = mask
+	        contours = visualize.find_contours(padded_mask, 0.5)
+	        for verts in contours:
+	            # Subtract the padding and flip (y, x) to (x, y)
+	            verts = np.fliplr(verts) - 1
+	            p = Polygon(verts, facecolor="none", edgecolor=color)
+	            ax.add_patch(p)
+    return masked_image.astype(np.uint8)
 
 if __name__ == "__main__":
 	argparser = argparse.ArgumentParser()
 	argparser.add_argument('-id', '--img_dir', type=str, default='./images')
-	argparser.add_argument('-pi', '--proc_imgs', type=bool, default=True)
+	argparser.add_argument('-pi', '--proc_imgs', action='store_true')
 	argparser.add_argument('-vd', '--vid_dir', type=str, default='./videos')
-	argparser.add_argument('-pv', '--proc_vids', type=bool, default=False)
-	argparser.add_argument('-o', '--output', type=bool, default=False)
+	argparser.add_argument('-pv', '--proc_vids', action='store_true')
+	argparser.add_argument('-o', '--output', action='store_true')
 	argparser.add_argument('-ni', '--num_imgs', type=int, default=-1)
 	argparser.add_argument('-nv', '--num_vids', type=int, default=-1)
 	argparser.add_argument('-db', '--db_path', type=str, default='labeldb.db')
+	argparser.add_argument('-s', '--save', action='store_true')
 	main(argparser.parse_args())
