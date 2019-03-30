@@ -45,5 +45,5 @@ if __name__ == '__main__':
 	parser.add_argument('-db', '--db_path', type=str, default='labeldb.db')
 	parser.add_argument('-id', '--img_dir', type=str, default='./images')
 	parser.add_argument('-vd', '--vid_dir', type=str, default='./videos')
-	parser.add_argument('-r', '--reset_file_labels', type=bool, default=False)
+	parser.add_argument('-r', '--reset_file_labels', action='store_true')
 	main(parser.parse_args())

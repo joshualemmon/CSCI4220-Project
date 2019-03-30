@@ -69,14 +69,14 @@ def main(args):
 	db = sqlite3.connect(args.db_path)
 	if(args.proc_imgs):
 		img_labels = analyze_images(model,args.img_dir, args.num_imgs, class_names, args.output, args.save)
-		for i, c in img_labels:
-			rel = calc_relevence(c) 
+		for i, c, s in img_labels:
+			rel = calc_relevence(c, s) 
 			add_labels_db(db, i, rel)
 
 	if(args.proc_vids):
 		vid_labels = analyze_videos(model,args.vid_dir, args.num_vids, class_names, args.output)
-		for i, c in vid_labels:
-			rel = calc_relevence(c)
+		for i, c, s in vid_labels:
+			rel = calc_relevence(c, s)
 			add_labels_db(db, i, rel) 
 		
 
@@ -91,20 +91,25 @@ def analyze_images(model, img_dir, num_imgs, class_names, output, save):
 	
 	# Obtain class_ids from images + visualize
 	class_ids = []
+	scores = []
 	for i in img_names:
 		image = skimage.io.imread(img_dir + '/' + i)	
 		result = model.detect([image])
 		r_class_ids = result[0]['class_ids']
+		r_scores = result[0]['scores']
 		class_ids.append(r_class_ids)
+		scores.append(r_scores)
 		if save or output:
-			p_img = get_processed_image(image, r_class_ids, boxes=result[0]['rois'], masks=result[0]['masks'], class_names=class_names, scores=result[0]['scores'])
+			p_img = get_processed_image(image, r_class_ids, boxes=result[0]['rois'], masks=result[0]['masks'], class_names=class_names, scores=r_scores)
 			if output:
 				skimage.io.imshow(p_img)
 				plt.show()
 			if save:
-				skimage.io.imsave('./processed/' + i, p_img)
+				skimage.io.imshow(p_img)
+				plt.savefig('./processed/processed_' + i)
+				#skimage.io.imsave('./processed/processed_' + i, p_img)
 	
-	img_labels = zip(img_names, class_ids)
+	img_labels = zip(img_names, class_ids, scores)
 	return img_labels
 
 # Analyzes videos in video directory and detects objects in each
@@ -120,7 +125,9 @@ def analyze_videos(model, vid_dir, num_vids, class_names, output):
 
 	# Select every nth frame and obtain class_ids for each video
 	class_ids = []
+	scores =[]
 	vid_class_ids = []
+	vid_scores = []
 	for v in vid_names:
 		cap = cv2.VideoCapture(vid_dir + '/' + v)
 		total_frames = int(cap.get(7))
@@ -132,23 +139,41 @@ def analyze_videos(model, vid_dir, num_vids, class_names, output):
 			result = model.detect([frame])
 
 			r_class_ids = result[0]['class_ids']
+			r_scores= result[0]['scores']
 			vid_class_ids.extend(r_class_ids)
+			vid_scores.extend(r_scores)
 		
 		class_ids.append(vid_class_ids)
-		vid_class_ids = []	
+		vid_class_ids = []
+		scores.append(vid_scores)
+		vid_scores = []
 		
 	print(class_ids)
-	vid_labels = zip(vid_names, class_ids)
+	print(scores)
+	vid_labels = zip(vid_names, class_ids, scores)
 	return vid_labels
 
 # Returns relevence for each class id as a dict
-def calc_relevence(class_ids):
+def calc_relevence(class_ids, scores):
 	rel = dict()
 	id_set = set(class_ids)
-	count = Counter(class_ids)
+	avg_scores, count = calc_mean_score(class_ids, scores)
 	for i in id_set:
-		rel[i] = count[i]/len(class_ids)
+		rel[i] = count[i]*avg_scores[i]/len(class_ids)
 	return rel
+
+def calc_mean_score(class_ids, scores):
+	avg_scores = dict()
+	count = Counter(class_ids)
+	for i in range(len(class_ids)):
+		if class_ids[i] in avg_scores.keys():
+			avg_scores[class_ids[i]] += scores[i]
+		else:
+			avg_scores[class_ids[i]] = scores[i]
+	for key in avg_scores:
+		avg_scores[key] /= count[key]
+	return avg_scores, count
+
 
 # Writes class id and relevence to db for given file
 def add_labels_db(db, fname, rel):

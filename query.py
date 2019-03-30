@@ -68,7 +68,7 @@ def get_files_with_label(db, l, n):
 def fname_search(db, n, o):
 	while(True):
 		f = input("Enter filename to search for.\nType 'back' to return.\n")
-		if f == "back":
+		if f == "back" or f == 'b':
 			break
 		else:
 			print("Finding top " + str(n) + " labels for file " + f)
