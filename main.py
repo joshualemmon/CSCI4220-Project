@@ -67,21 +67,22 @@ def main(args):
 
 	# Fill in image and video relevance data to the database
 	db = sqlite3.connect(args.db_path)
+	output_array = [args.bound_boxes, args.masks, args.scores, args.labels]
 	if(args.proc_imgs):
-		img_labels = analyze_images(model,args.img_dir, args.num_imgs, class_names, args.output, args.save)
+		img_labels = analyze_images(model,args.img_dir, args.num_imgs, class_names, args.output, args.save, output_array)
 		for i, c, s in img_labels:
 			rel = calc_relevence(c, s) 
 			add_labels_db(db, i, rel)
 
 	if(args.proc_vids):
-		vid_labels = analyze_videos(model,args.vid_dir, args.num_vids, class_names, args.output)
+		vid_labels = analyze_videos(model,args.vid_dir, args.num_vids, class_names, args.output, args.save, output_array)
 		for i, c, s in vid_labels:
 			rel = calc_relevence(c, s)
 			add_labels_db(db, i, rel) 
 		
 
 # Analyzes images in image directory and detects objects in each
-def analyze_images(model, img_dir, num_imgs, class_names, output, save):
+def analyze_images(model, img_dir, num_imgs, class_names, output, save, o_arr):
 	img_names = []
 	for i, f in enumerate(os.listdir(img_dir), 1):
 		if i <= num_imgs or num_imgs == -1:
@@ -100,7 +101,7 @@ def analyze_images(model, img_dir, num_imgs, class_names, output, save):
 		class_ids.append(r_class_ids)
 		scores.append(r_scores)
 		if save or output:
-			p_img = get_processed_image(image, r_class_ids, boxes=result[0]['rois'], masks=result[0]['masks'], class_names=class_names, scores=r_scores)
+			p_img = get_processed_image(image, r_class_ids, boxes=result[0]['rois'], masks=result[0]['masks'], class_names=class_names, scores=r_scores, o_arr=o_arr)
 			if output:
 				skimage.io.imshow(p_img)
 				plt.show()
@@ -115,7 +116,7 @@ def analyze_images(model, img_dir, num_imgs, class_names, output, save):
 # Analyzes videos in video directory and detects objects in each
 # Todo: Next step, save final frames with visualize to create short frame video
 # Todo: Optimize step, skip similar frames
-def analyze_videos(model, vid_dir, num_vids, class_names, output):
+def analyze_videos(model, vid_dir, num_vids, class_names, output, save, o_arr):
 	vid_names = []
 	for i, f in enumerate(os.listdir(vid_dir)):
 		if i <= num_vids or num_vids == -1:
@@ -187,8 +188,8 @@ def add_labels_db(db, fname, rel):
 	db.commit()
 
 # Returns an image object with optional bounding boxes, masks and class names
-def get_processed_image(image, class_ids, boxes=[], masks=[], class_names=[],
-                      scores=[], title="",
+def get_processed_image(image, class_ids,o_arr, boxes, masks, class_names,
+                      scores, title="",
                       figsize=(16, 16), ax=None,
                       show_mask=True, show_bbox=True,
                       colors=None, captions=None):
@@ -220,7 +221,7 @@ def get_processed_image(image, class_ids, boxes=[], masks=[], class_names=[],
         color = colors[i]
 
         # Bounding box
-        if len(boxes) > 0:
+        if  o_arr[0]:
 	        if not np.any(boxes[i]):
 	            # Skip this instance. Has no bbox. Likely lost in image cropping.
 	            continue
@@ -232,10 +233,13 @@ def get_processed_image(image, class_ids, boxes=[], masks=[], class_names=[],
 	            ax.add_patch(p)
 
         # Label
-        if len(class_names) > 0:
+        if o_arr[3]:
 	        if not captions:
 	            class_id = class_ids[i]
-	            score = scores[i] if scores is not None else None
+	            if o_arr[2]:
+	            	score = scores[i] if scores is not None else None
+	            else:
+	            	score = None
 	            label = class_names[class_id]
 	            caption = "{} {:.3f}".format(label, score) if score else label
 	        else:
@@ -244,7 +248,7 @@ def get_processed_image(image, class_ids, boxes=[], masks=[], class_names=[],
 	                color='w', size=11, backgroundcolor="none")
 
         # Mask
-        if len(masks) > 0:
+        if o_arr[1]:
 	        mask = masks[:, :, i]
 	        if show_mask:
 	            masked_image = visualize.apply_mask(masked_image, mask, color)
@@ -273,4 +277,9 @@ if __name__ == "__main__":
 	argparser.add_argument('-nv', '--num_vids', type=int, default=-1)
 	argparser.add_argument('-db', '--db_path', type=str, default='labeldb.db')
 	argparser.add_argument('-s', '--save', action='store_true')
+	argparser.add_argument('-bb', '--bound_boxes', action='store_true')
+	argparser.add_argument('-m', '--masks', action='store_true')
+	argparser.add_argument('-sc', '--scores', action='store_true')
+	argparser.add_argument('-l', '--labels', action='store_true')
+
 	main(argparser.parse_args())
