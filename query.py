@@ -104,6 +104,6 @@ if __name__ == "__main__":
 	argparser = argparse.ArgumentParser()
 	argparser.add_argument('-db', "--database", type=str, default="labeldb.db")
 	argparser.add_argument('-n', '--num_results', type=int, default=1)
-	argparser.add_argument('-o', '--output', type=bool, default=False)
+	argparser.add_argument('-o', '--output', action='save_true')
 
 	main(argparser.parse_args())
