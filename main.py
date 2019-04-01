@@ -119,20 +119,23 @@ def analyze_images(model, img_dir, num_imgs, class_names, output, save, o_arr):
 def analyze_videos(model, vid_dir, num_vids, class_names, output, save, o_arr):
 	vid_names = []
 	for i, f in enumerate(os.listdir(vid_dir)):
-		if i <= num_vids or num_vids == -1:
+		if i < num_vids or num_vids == -1:
 			vid_names.append(f)
 		else:
 			break
 
 	# Select every nth frame and obtain class_ids for each video
 	class_ids = []
-	scores =[]
+	scores = []
 	vid_class_ids = []
 	vid_scores = []
+	
 	for v in vid_names:
 		cap = cv2.VideoCapture(vid_dir + '/' + v)
+		fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+		out = cv2.VideoWriter('./processed/processed_' + v, fourcc, 2, (1920, 1080))
 		total_frames = int(cap.get(7))
-		frame_offset = 100 # Could take in as arg.parse		
+		frame_offset = 30 # Could take in as arg.parse		
 
 		for i in range(0, total_frames, frame_offset):
 			cap.set(1, i)
@@ -143,14 +146,21 @@ def analyze_videos(model, vid_dir, num_vids, class_names, output, save, o_arr):
 			r_scores= result[0]['scores']
 			vid_class_ids.extend(r_class_ids)
 			vid_scores.extend(r_scores)
+
+			if save:
+				p_img = get_processed_image(frame, r_class_ids, boxes=result[0]['rois'], masks=result[0]['masks'], class_names=class_names, scores=r_scores, o_arr=o_arr)
+				out.write(p_img)
 		
 		class_ids.append(vid_class_ids)
 		vid_class_ids = []
 		scores.append(vid_scores)
 		vid_scores = []
 		
-	print(class_ids)
-	print(scores)
+		cap.release()
+		out.release()
+		
+	# print(class_ids)
+	# print(scores)
 	vid_labels = zip(vid_names, class_ids, scores)
 	return vid_labels
 
